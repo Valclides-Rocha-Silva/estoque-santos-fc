@@ -68,6 +68,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .btn.sm{height:28px;padding:0 10px;font-size:11px;}
 .btn.in-btn{border-color:rgba(74,158,110,0.4);color:var(--green);}.btn.in-btn:hover{background:var(--green-bg);}
 .btn.out-btn{border-color:rgba(196,90,90,0.4);color:var(--red);}.btn.out-btn:hover{background:var(--red-bg);}
+.btn.del-btn{border-color:rgba(196,90,90,0.3);color:var(--text3);padding:0 8px;}.btn.del-btn:hover{background:var(--red-bg);color:var(--red);border-color:rgba(196,90,90,0.5);}
 .btn.reset-btn{border-color:rgba(196,90,90,0.4);color:var(--red);}.btn.reset-btn:hover{background:var(--red-bg);}
 
 /* MAIN */
@@ -513,6 +514,7 @@ function render(){
       <td><div class="action-btns">
         <button class="btn sm in-btn" onclick="toggleMove('${p.id}','in')">+ Entrada</button>
         <button class="btn sm out-btn" onclick="toggleMove('${p.id}','out')">− Saída</button>
+        <button class="btn sm del-btn" onclick="deleteProduct('${p.id}',this)" title="Excluir produto">🗑️</button>
       </div></td>
     </tr>
     ${isOpen?`<tr><td colspan="7" style="padding:0;"><div class="move-panel open">
@@ -611,6 +613,18 @@ async function addProduct(){
   document.getElementById('m-qty').value='';document.getElementById('m-unit').value='';
   closeModal('modal-backdrop');
   toast(`"${name}" adicionado!`,'green');setSyncStatus('synced');
+}
+
+async function deleteProduct(id,btn){
+  if(!confirm('Excluir este produto? Esta ação não pode ser desfeita.'))return;
+  setSyncStatus('syncing');
+  btn.disabled=true;btn.textContent='...';
+  const {error}=await sb.from('produtos').delete().eq('id',id);
+  if(error){setSyncStatus('error');toast('Erro ao excluir.','red');btn.disabled=false;btn.textContent='🗑️';return;}
+  products=products.filter(p=>p.id!==id);
+  applyFilter();
+  toast('Produto excluído.','red');
+  setSyncStatus('synced');
 }
 
 function exportCSV(){
