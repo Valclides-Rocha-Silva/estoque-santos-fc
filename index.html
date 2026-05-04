@@ -70,6 +70,7 @@ body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--text);min-he
 .btn.in-btn{border-color:rgba(74,158,110,0.4);color:var(--green);}.btn.in-btn:hover{background:var(--green-bg);}
 .btn.out-btn{border-color:rgba(196,90,90,0.4);color:var(--red);}.btn.out-btn:hover{background:var(--red-bg);}
 .btn.del-btn{border-color:rgba(196,90,90,0.3);color:var(--text3);padding:0 8px;}.btn.del-btn:hover{background:var(--red-bg);color:var(--red);border-color:rgba(196,90,90,0.5);}
+.btn.edit-btn{border-color:rgba(200,168,75,0.3);color:var(--text3);padding:0 8px;}.btn.edit-btn:hover{background:var(--amber-bg);color:var(--amber);border-color:rgba(200,168,75,0.5);}
 .btn.reset-btn{border-color:rgba(196,90,90,0.4);color:var(--red);}.btn.reset-btn:hover{background:var(--red-bg);}
 
 /* MAIN */
@@ -299,6 +300,22 @@ input.confirm-input.invalid{border-color:var(--red)!important;}
   </div>
 </div>
 
+<!-- MODAL EDITAR PRODUTO -->
+<div class="modal-backdrop" id="edit-backdrop" onclick="closeModalOutside(event,'edit-backdrop')">
+  <div class="modal">
+    <div class="modal-title">✏️ Editar produto</div>
+    <div class="form-group"><label class="form-label">Descrição</label><input type="text" class="form-input" id="e-name" placeholder="Nome do produto" /></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Código</label><input type="text" class="form-input" id="e-cod" placeholder="00.00000" /></div>
+      <div class="form-group"><label class="form-label">Unidade</label><input type="text" class="form-input" id="e-unit" placeholder="UN / PT / GL" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('edit-backdrop')">Cancelar</button>
+      <button class="btn accent-btn" onclick="saveEdit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><div class="toast-dot" id="toast-dot"></div><span id="toast-msg"></span></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -515,6 +532,7 @@ function render(){
       <td><div class="action-btns">
         <button class="btn sm in-btn" onclick="toggleMove('${p.id}','in')">+ Entrada</button>
         <button class="btn sm out-btn" onclick="toggleMove('${p.id}','out')">− Saída</button>
+        <button class="btn sm edit-btn" onclick="openEditModal('${p.id}')" title="Editar produto">✏️</button>
         <button class="btn sm del-btn" onclick="deleteProduct('${p.id}',this)" title="Excluir produto">🗑️</button>
       </div></td>
     </tr>
@@ -628,6 +646,39 @@ async function deleteProduct(id,btn){
   setSyncStatus('synced');
 }
 
+let editingId=null;
+
+function openEditModal(id){
+  const p=products.find(x=>x.id===id);
+  if(!p)return;
+  editingId=id;
+  document.getElementById('e-name').value=p.name;
+  document.getElementById('e-cod').value=p.cod||'';
+  document.getElementById('e-unit').value=p.unit||'';
+  document.getElementById('edit-backdrop').classList.add('open');
+  setTimeout(()=>document.getElementById('e-name').focus(),50);
+}
+
+async function saveEdit(){
+  if(!editingId)return;
+  const name=document.getElementById('e-name').value.trim();
+  const cod=document.getElementById('e-cod').value.trim();
+  const unit=document.getElementById('e-unit').value.trim();
+  if(!name){document.getElementById('e-name').focus();return;}
+  if(!unit){document.getElementById('e-unit').focus();return;}
+  setSyncStatus('syncing');
+  const {error}=await sb.from('produtos').update({name,cod:cod||'—',unit}).eq('id',editingId);
+  if(error){setSyncStatus('error');toast('Erro ao salvar.','red');return;}
+  const p=products.find(x=>x.id===editingId);
+  if(p){p.name=name;p.cod=cod||'—';p.unit=unit;}
+  products.sort((a,b)=>a.name.localeCompare(b.name));
+  applyFilter();
+  closeModal('edit-backdrop');
+  editingId=null;
+  toast('Produto atualizado!','green');
+  setSyncStatus('synced');
+}
+
 function exportCSV(){
   const csv=[['Código','Descrição','Unidade','Quantidade','Mínimo','Status'],
     ...products.map(p=>[p.cod||'',p.name,p.unit,p.qty,p.min||0,status(p)==='ok'?'OK':status(p)==='low'?'Baixo':'Sem estoque'])
@@ -648,7 +699,7 @@ function toast(msg,color){
 }
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeModal('modal-backdrop');closeModal('reset-backdrop');openId=null;openType=null;render();}
+  if(e.key==='Escape'){closeModal('modal-backdrop');closeModal('reset-backdrop');closeModal('edit-backdrop');openId=null;openType=null;render();}
 });
 init();
 </script>
